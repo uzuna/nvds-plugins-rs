@@ -1,0 +1,10 @@
+/target
+/Cargo.lock
+
+# infer model files
+*.cfg
+*.weights
+*.engine
+
+# result
+_*.jpg
