@@ -79,6 +79,14 @@ fn create_pipeline() -> Result<gst::Pipeline, Error> {
                     .expect("No custom meta found");
                 println!("Got buffer type: {}", meta.meta_type());
 
+                if let Some(meta) = meta.get_batch_meta() {
+                    println!(
+                        "Got batch meta: {} {}",
+                        meta.max_frames_in_batch(),
+                        meta.num_frames_in_batch()
+                    );
+                }
+
                 Ok(gst::FlowSuccess::Ok)
             })
             .build(),
