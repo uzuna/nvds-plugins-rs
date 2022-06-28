@@ -65,17 +65,6 @@ impl fmt::Debug for NvDsMeta {
 }
 
 #[repr(transparent)]
-pub struct NvDsFrameMeta(imp::NvDsFrameMeta);
-
-#[doc(hidden)]
-impl glib::translate::FromGlibPtrNone<*mut imp::NvDsFrameMeta> for NvDsFrameMeta {
-    #[inline]
-    unsafe fn from_glib_none(ptr: *mut imp::NvDsFrameMeta) -> Self {
-        Self(*ptr)
-    }
-}
-
-#[repr(transparent)]
 pub struct NvDsBatchMeta(imp::NvDsBatchMeta);
 
 impl NvDsBatchMeta {
@@ -92,12 +81,13 @@ impl NvDsBatchMeta {
                 println!("metalist {} {:?}", i, x.as_ref().data);
                 let meta = &*(x.as_ref().data as *mut imp::NvDsFrameMeta);
                 println!("frame meta {:?}", meta);
+                let objs =
+                    nvlist::GList::from_glib_full(meta.obj_meta_list as *mut glib::ffi::GList);
+                for (j, o) in objs.enumerate() {
+                    let meta = &*(o.as_ref().data as *mut imp::NvDsObjectMeta);
+                    println!("object meta {} {:?}", j, meta);
+                }
             }
-            // let l = *(self.0.frame_meta_list);
-            // println!("metalist {:?}", l.next);
-
-            // let x = &*(l.data as *mut imp::NvDsFrameMeta);
-            // println!("frame meta {:?}", x);
         }
     }
 }
