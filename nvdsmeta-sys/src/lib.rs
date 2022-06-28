@@ -2,16 +2,16 @@ use gst::prelude::*;
 use std::fmt;
 
 mod imp;
-mod nvlist;
+pub mod nvlist;
 
 #[link(name = "nvdsgst_meta")]
 extern "C" {
-    pub fn nvds_meta_get_info() -> *const gst::ffi::GstMetaInfo;
-    pub fn nvds_meta_api_get_type() -> glib::Type;
+    // pub(crate) fn nvds_meta_get_info() -> *const gst::ffi::GstMetaInfo;
+    pub(crate) fn nvds_meta_api_get_type() -> glib::Type;
 }
 
 mod nvgst {
-    #[allow(non_camel_case_types)]
+    #[allow(non_upper_case_globals)]
     pub(crate) const NvDsMetaType_NVDS_GST_BATCH_META: crate::imp::NvDsMetaType =
         crate::imp::NvDsMetaType_NVDS_GST_CUSTOM_META + 1;
     #[repr(C)]
@@ -65,6 +65,16 @@ impl fmt::Debug for NvDsMeta {
 }
 
 #[repr(transparent)]
+#[derive(Debug)]
+pub struct NvDsFrameMeta(imp::NvDsFrameMeta);
+
+impl NvDsFrameMeta {
+    pub fn object_meta_list(&self) -> nvlist::TListIter<imp::NvDsObjectMeta> {
+        unsafe { nvlist::TListIter::from_glib_full(self.0.obj_meta_list as *mut glib::ffi::GList) }
+    }
+}
+
+#[repr(transparent)]
 pub struct NvDsBatchMeta(imp::NvDsBatchMeta);
 
 impl NvDsBatchMeta {
@@ -74,20 +84,9 @@ impl NvDsBatchMeta {
     pub fn num_frames_in_batch(&self) -> u32 {
         self.0.num_frames_in_batch
     }
-    pub fn frame_meta_list(&self) {
+    pub fn frame_meta_list(&self) -> nvlist::TListIter<NvDsFrameMeta> {
         unsafe {
-            let l = nvlist::GList::from_glib_full(self.0.frame_meta_list as *mut glib::ffi::GList);
-            for (i, x) in l.enumerate() {
-                println!("metalist {} {:?}", i, x.as_ref().data);
-                let meta = &*(x.as_ref().data as *mut imp::NvDsFrameMeta);
-                println!("frame meta {:?}", meta);
-                let objs =
-                    nvlist::GList::from_glib_full(meta.obj_meta_list as *mut glib::ffi::GList);
-                for (j, o) in objs.enumerate() {
-                    let meta = &*(o.as_ref().data as *mut imp::NvDsObjectMeta);
-                    println!("object meta {} {:?}", j, meta);
-                }
-            }
+            nvlist::TListIter::from_glib_full(self.0.frame_meta_list as *mut glib::ffi::GList)
         }
     }
 }

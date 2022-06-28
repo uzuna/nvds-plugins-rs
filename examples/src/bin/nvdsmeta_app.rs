@@ -85,7 +85,15 @@ fn create_pipeline() -> Result<gst::Pipeline, Error> {
                         meta.max_frames_in_batch(),
                         meta.num_frames_in_batch()
                     );
-                    meta.frame_meta_list();
+                    let list = meta.frame_meta_list();
+
+                    for (i, meta) in list.enumerate() {
+                        println!("frame meta {} {:?}", i, &meta);
+                        let objs = meta.object_meta_list();
+                        for (j, o) in objs.enumerate() {
+                            println!("object meta {} {:?}", j, o);
+                        }
+                    }
                 }
 
                 Ok(gst::FlowSuccess::Ok)
