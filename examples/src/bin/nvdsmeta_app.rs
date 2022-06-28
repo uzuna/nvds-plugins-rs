@@ -1,10 +1,7 @@
-// This example demonstrates how custom GstMeta can be defined and used on buffers.
-//
-// It simply attaches a GstMeta with a Rust String to buffers that are passed into
-// an appsrc and retrieves them again from an appsink.
+//! Example using nvdsmeta-sys with Appsink
+//! 
+//! and Use to check the operation of nvdsmeta-sys.
 #![allow(clippy::non_send_fields_in_send_ty)]
-
-
 
 use anyhow::Error;
 use chrono::serde::ts_nanoseconds;
@@ -67,7 +64,6 @@ fn create_source(s: &Source, pipeline: &gst::Pipeline) -> Result<gst::Element, E
 fn create_pipeline(opt: &Opt) -> Result<gst::Pipeline, Error> {
     gst::init()?;
 
-    // This creates a pipeline with appsrc and appsink.
     let pipeline = gst::Pipeline::new(None);
     let srcbin = create_source(&opt.source, &pipeline)?;
 
@@ -81,6 +77,7 @@ fn create_pipeline(opt: &Opt) -> Result<gst::Pipeline, Error> {
     nvstreammux.set_property("width", 1280u32);
     nvstreammux.set_property("height", 720u32);
     nvstreammux.set_property("batched-push-timeout", 40000i32);
+    // FIXME we can use GstNvBufMemoryType? 
     // nvstreammux.set_property("nvbuf-memory-type", "0");
 
     nvinfer.set_property("config-file-path", "../scripts/config_infer_yolov3.txt");
@@ -96,26 +93,19 @@ fn create_pipeline(opt: &Opt) -> Result<gst::Pipeline, Error> {
 
     let appsink = appsink.downcast::<gst_app::AppSink>().unwrap();
 
-    // Getting data out of the appsink is done by setting callbacks on it.
-    // The appsink will then call those handlers, as soon as data is available.
     appsink.set_callbacks(
         gst_app::AppSinkCallbacks::builder()
-            // Add a handler to the "new-sample" signal.
             .new_sample(|appsink| {
-                // Pull the sample in question out of the appsink's buffer.
                 let sample = appsink.pull_sample().map_err(|_| gst::FlowError::Eos)?;
-
                 let buffer = sample.buffer().ok_or_else(|| {
                     element_error!(
                         appsink,
                         gst::ResourceError::Failed,
                         ("Failed to get buffer from appsink")
                     );
-
                     gst::FlowError::Error
                 })?;
 
-                // Retrieve the custom meta from the buffer and print it.
                 let meta = buffer
                     .meta::<nvdsmeta_sys::NvDsMeta>()
                     .expect("No custom meta found");
@@ -150,7 +140,6 @@ fn create_pipeline(opt: &Opt) -> Result<gst::Pipeline, Error> {
 fn example_main(opt: &Opt) {
     let pipeline = create_pipeline(opt).unwrap();
 
-    // Actually start the pipeline.
     pipeline
         .set_state(gst::State::Playing)
         .expect("Unable to set the pipeline to the `Playing` state");
@@ -160,7 +149,6 @@ fn example_main(opt: &Opt) {
         .bus()
         .expect("Pipeline without bus. Shouldn't happen!");
 
-    // And run until EOS or an error happened.
     for msg in bus.iter_timed(gst::ClockTime::NONE) {
         use gst::MessageView;
 
@@ -179,7 +167,6 @@ fn example_main(opt: &Opt) {
         }
     }
 
-    // Finally shut down everything.
     pipeline
         .set_state(gst::State::Null)
         .expect("Unable to set the pipeline to the `Null` state");
@@ -264,25 +251,30 @@ impl ObjectMessage {
 
 #[derive(Debug, StructOpt)]
 enum Source {
+    /// inference image file
     ImageFile {
         #[structopt(
-            short,
+            short, long,
             default_value = "/opt/nvidia/deepstream/deepstream/samples/streams/sample_720p.jpg"
         )]
         location: String,
     },
+    /// inference video file
     VideoFile {
         #[structopt(
-            short,
+            short, long,
             default_value = "/opt/nvidia/deepstream/deepstream/samples/streams/sample_720p.h264"
         )]
         location: String,
+        /// Number of buffers to flow in the pipeline
         #[structopt(long, default_value = "30")]
         num_buffers: i32,
     },
+    /// inference v4l2 camera source
     V4l2Src {
-        #[structopt(short, default_value = "/dev/video0")]
+        #[structopt(short, long, default_value = "/dev/video0")]
         device: String,
+        /// Number of buffers to flow in the pipeline
         #[structopt(long, default_value = "30")]
         num_buffers: i32,
     },
@@ -294,14 +286,11 @@ enum Source {
     about = "test nvdsmeta with deepstremaer sample"
 )]
 struct Opt {
-    /// Select inference source
     #[structopt(subcommand)]
     source: Source,
 }
 
 fn main() {
-    // tutorials_common::run is only required to set up the application environment on macOS
-    // (but not necessary in normal Cocoa applications where this is set up automatically).
     let opt = Opt::from_args();
     log::debug!("{:?}", opt);
     example_main(&opt);
