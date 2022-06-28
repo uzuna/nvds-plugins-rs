@@ -1,4 +1,4 @@
-use gst::prelude::*;
+use gst::{prelude::*, ClockTime};
 use std::{fmt, ffi::CStr};
 
 mod imp;
@@ -64,49 +64,39 @@ impl fmt::Debug for NvDsMeta {
     }
 }
 
+pub use imp::NvBbox_Coords;
 #[repr(transparent)]
 #[derive(Debug)]
 pub struct NvDsObjectMeta(imp::NvDsObjectMeta);
 
 impl NvDsObjectMeta {
-    pub fn to_object_meta(&self) -> ObjectMeta {
-        ObjectMeta::from(&self.0)
+    #[inline]
+    pub fn class_id(&self) -> i32 {
+        self.0.class_id
     }
-}
-
-#[derive(Debug)]
-pub struct BBoxCorrds {
-    pub left: f32,
-    pub top: f32,
-    pub width: f32,
-    pub height: f32,
-}
-
-impl From<&imp::NvDsComp_BboxInfo> for BBoxCorrds {
-    fn from(x: &imp::NvDsComp_BboxInfo) -> Self {
-        let c = x.org_bbox_coords;
-        Self { left: c.left, top: c.top, width: c.width, height: c.height }
+    #[inline]
+    pub fn object_id(&self) -> u64 {
+        self.0.object_id
     }
-}
-
-#[derive(Debug)]
-pub struct ObjectMeta {
-    pub class_id: i32,
-    pub object_id: u64,
-    pub detector_bbox_info: BBoxCorrds,
-    pub confidence: f32,
-    pub label: String,
-}
-
-impl From<&imp::NvDsObjectMeta> for ObjectMeta {
-    fn from(x: &imp::NvDsObjectMeta) -> Self {
-        let label = unsafe {CStr::from_ptr(&x.obj_label as *const std::os::raw::c_char)};
-        Self { class_id: x.class_id, 
-            object_id: x.object_id, 
-            detector_bbox_info: BBoxCorrds::from(&x.detector_bbox_info), 
-            confidence: x.confidence, 
-            label: label.to_str().unwrap().to_owned(),
-        }
+    #[inline]
+    pub fn confidence(&self) -> f32 {
+        self.0.confidence
+    }
+    #[inline]
+    pub fn tracker_confidence(&self) -> f32 {
+        self.0.tracker_confidence
+    }
+    #[inline]
+    pub fn label(&self) -> &CStr {
+        unsafe {CStr::from_ptr(&self.0.obj_label as *const std::os::raw::c_char)}
+    }
+    #[inline]
+    pub fn detector_bbox(&self) -> &NvBbox_Coords {
+        &self.0.detector_bbox_info.org_bbox_coords
+    }
+    #[inline]
+    pub fn tracker_bbox(&self) -> &NvBbox_Coords {
+        &self.0.tracker_bbox_info.org_bbox_coords
     }
 }
 
@@ -117,6 +107,34 @@ pub struct NvDsFrameMeta(imp::NvDsFrameMeta);
 impl NvDsFrameMeta {
     pub fn object_meta_list(&self) -> nvlist::GListIter<NvDsObjectMeta> {
         nvlist::GListIter::from_glib_full(self.0.obj_meta_list as *mut glib::ffi::GList)
+    }
+    #[inline]
+    pub fn source_id(&self) -> u32 {
+        self.0.source_id
+    }
+    #[inline]
+    pub fn frame_num(&self) -> i32 {
+        self.0.frame_num
+    }
+    #[inline]
+    pub fn buf_pts(&self) -> ClockTime {
+        ClockTime::from_nseconds(self.0.buf_pts) 
+    }
+    #[inline]
+    pub fn ntp_timestamp(&self) -> u64 {
+        self.0.ntp_timestamp
+    }
+    #[inline]
+    pub fn source_frame_width(&self) -> u32 {
+        self.0.source_frame_width
+    }
+    #[inline]
+    pub fn source_frame_height(&self) -> u32 {
+        self.0.source_frame_height
+    }
+    #[inline]
+    pub fn num_obj_meta(&self) -> u32 {
+        self.0.num_obj_meta
     }
 }
 
