@@ -115,8 +115,8 @@ impl From<&imp::NvDsObjectMeta> for ObjectMeta {
 pub struct NvDsFrameMeta(imp::NvDsFrameMeta);
 
 impl NvDsFrameMeta {
-    pub fn object_meta_list(&self) -> nvlist::TListIter<NvDsObjectMeta> {
-        nvlist::TListIter::from_glib_full(self.0.obj_meta_list as *mut glib::ffi::GList)
+    pub fn object_meta_list(&self) -> nvlist::GListIter<NvDsObjectMeta> {
+        nvlist::GListIter::from_glib_full(self.0.obj_meta_list as *mut glib::ffi::GList)
     }
 }
 
@@ -130,8 +130,8 @@ impl NvDsBatchMeta {
     pub fn num_frames_in_batch(&self) -> u32 {
         self.0.num_frames_in_batch
     }
-    pub fn frame_meta_list(&self) -> nvlist::TListIter<NvDsFrameMeta> {
-        nvlist::TListIter::from_glib_full(self.0.frame_meta_list as *mut glib::ffi::GList)
+    pub fn frame_meta_list(&self) -> nvlist::GListIter<NvDsFrameMeta> {
+        nvlist::GListIter::from_glib_full(self.0.frame_meta_list as *mut glib::ffi::GList)
     }
 }
 

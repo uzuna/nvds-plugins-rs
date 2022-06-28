@@ -29,12 +29,12 @@ impl GList {
     }
 }
 
-pub struct TListIter<'a, T> {
+pub struct GListIter<'a, T> {
     ptr: Option<std::ptr::NonNull<glib::ffi::GList>>,
     phantom: PhantomData<&'a T>,
 }
 
-impl<'a, T> Iterator for TListIter<'a, T> {
+impl<'a, T> Iterator for GListIter<'a, T> {
     type Item = &'a T;
 
     fn next(&mut self) -> Option<Self::Item> {
@@ -52,9 +52,9 @@ impl<'a, T> Iterator for TListIter<'a, T> {
     }
 }
 
-impl<'a, T> TListIter<'a, T> {
-    pub(crate) fn from_glib_full(list: *mut glib::ffi::GList) -> TListIter<'a, T> {
-        TListIter {
+impl<'a, T> GListIter<'a, T> {
+    pub(crate) fn from_glib_full(list: *mut glib::ffi::GList) -> GListIter<'a, T> {
+        GListIter {
             ptr: std::ptr::NonNull::new(list),
             phantom: PhantomData,
         }
