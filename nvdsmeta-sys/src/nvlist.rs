@@ -22,7 +22,7 @@ impl Iterator for GList {
 }
 
 impl GList {
-    pub unsafe fn from_glib_full(list: *mut glib::ffi::GList) -> GList {
+    pub fn from_glib_full(list: *mut glib::ffi::GList) -> GList {
         GList {
             ptr: std::ptr::NonNull::new(list),
         }
@@ -53,7 +53,7 @@ impl<'a, T> Iterator for TListIter<'a, T> {
 }
 
 impl<'a, T> TListIter<'a, T> {
-    pub(crate) unsafe fn from_glib_full(list: *mut glib::ffi::GList) -> TListIter<'a, T> {
+    pub(crate) fn from_glib_full(list: *mut glib::ffi::GList) -> TListIter<'a, T> {
         TListIter {
             ptr: std::ptr::NonNull::new(list),
             phantom: PhantomData,

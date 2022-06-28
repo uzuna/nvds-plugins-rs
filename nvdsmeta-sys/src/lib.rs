@@ -70,7 +70,7 @@ pub struct NvDsFrameMeta(imp::NvDsFrameMeta);
 
 impl NvDsFrameMeta {
     pub fn object_meta_list(&self) -> nvlist::TListIter<imp::NvDsObjectMeta> {
-        unsafe { nvlist::TListIter::from_glib_full(self.0.obj_meta_list as *mut glib::ffi::GList) }
+        nvlist::TListIter::from_glib_full(self.0.obj_meta_list as *mut glib::ffi::GList)
     }
 }
 
@@ -85,9 +85,7 @@ impl NvDsBatchMeta {
         self.0.num_frames_in_batch
     }
     pub fn frame_meta_list(&self) -> nvlist::TListIter<NvDsFrameMeta> {
-        unsafe {
-            nvlist::TListIter::from_glib_full(self.0.frame_meta_list as *mut glib::ffi::GList)
-        }
+        nvlist::TListIter::from_glib_full(self.0.frame_meta_list as *mut glib::ffi::GList)
     }
 }
 
