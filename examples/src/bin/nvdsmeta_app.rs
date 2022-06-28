@@ -85,6 +85,7 @@ fn create_pipeline() -> Result<gst::Pipeline, Error> {
                         meta.max_frames_in_batch(),
                         meta.num_frames_in_batch()
                     );
+                    meta.frame_meta_list();
                 }
 
                 Ok(gst::FlowSuccess::Ok)
