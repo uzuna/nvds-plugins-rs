@@ -91,7 +91,7 @@ fn create_pipeline() -> Result<gst::Pipeline, Error> {
                         println!("frame meta {} {:?}", i, &meta);
                         let objs = meta.object_meta_list();
                         for (j, o) in objs.enumerate() {
-                            println!("object meta {} {:?}", j, o);
+                            println!("object meta {} {:?}", j, o.to_object_meta());
                         }
                     }
                 }

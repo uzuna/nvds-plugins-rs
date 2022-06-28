@@ -1,5 +1,5 @@
 use gst::prelude::*;
-use std::fmt;
+use std::{fmt, ffi::CStr};
 
 mod imp;
 pub mod nvlist;
@@ -66,10 +66,56 @@ impl fmt::Debug for NvDsMeta {
 
 #[repr(transparent)]
 #[derive(Debug)]
+pub struct NvDsObjectMeta(imp::NvDsObjectMeta);
+
+impl NvDsObjectMeta {
+    pub fn to_object_meta(&self) -> ObjectMeta {
+        ObjectMeta::from(&self.0)
+    }
+}
+
+#[derive(Debug)]
+pub struct BBoxCorrds {
+    pub left: f32,
+    pub top: f32,
+    pub width: f32,
+    pub height: f32,
+}
+
+impl From<&imp::NvDsComp_BboxInfo> for BBoxCorrds {
+    fn from(x: &imp::NvDsComp_BboxInfo) -> Self {
+        let c = x.org_bbox_coords;
+        Self { left: c.left, top: c.top, width: c.width, height: c.height }
+    }
+}
+
+#[derive(Debug)]
+pub struct ObjectMeta {
+    pub class_id: i32,
+    pub object_id: u64,
+    pub detector_bbox_info: BBoxCorrds,
+    pub confidence: f32,
+    pub label: String,
+}
+
+impl From<&imp::NvDsObjectMeta> for ObjectMeta {
+    fn from(x: &imp::NvDsObjectMeta) -> Self {
+        let label = unsafe {CStr::from_ptr(&x.obj_label as *const std::os::raw::c_char)};
+        Self { class_id: x.class_id, 
+            object_id: x.object_id, 
+            detector_bbox_info: BBoxCorrds::from(&x.detector_bbox_info), 
+            confidence: x.confidence, 
+            label: label.to_str().unwrap().to_owned(),
+        }
+    }
+}
+
+#[repr(transparent)]
+#[derive(Debug)]
 pub struct NvDsFrameMeta(imp::NvDsFrameMeta);
 
 impl NvDsFrameMeta {
-    pub fn object_meta_list(&self) -> nvlist::TListIter<imp::NvDsObjectMeta> {
+    pub fn object_meta_list(&self) -> nvlist::TListIter<NvDsObjectMeta> {
         nvlist::TListIter::from_glib_full(self.0.obj_meta_list as *mut glib::ffi::GList)
     }
 }
