@@ -13,6 +13,7 @@ gst-base = { package = "gstreamer-base", git = "https://gitlab.freedesktop.org/g
 gst-app = { package = "gstreamer-app", git = "https://gitlab.freedesktop.org/gstreamer/gstreamer-rs" }
 once_cell = "1.0"
 nvdsmeta-sys = {path = "../nvdsmeta-sys"}
+structopt = "0.3.26"
 
 
 [[bin]]

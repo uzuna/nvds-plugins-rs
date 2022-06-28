@@ -4,28 +4,59 @@
 // an appsrc and retrieves them again from an appsink.
 #![allow(clippy::non_send_fields_in_send_ty)]
 
+use std::str::FromStr;
+
 use anyhow::Error;
+use structopt::StructOpt;
 
 use gst::element_error;
 use gst::prelude::*;
 
-fn create_pipeline() -> Result<gst::Pipeline, Error> {
+fn create_source(s: &Source, pipeline: &gst::Pipeline) -> Result<gst::Element, Error> {
+    match s {
+        Source::ImageFile => {
+            let src = gst::ElementFactory::make("filesrc", None)?;
+            let dec = gst::ElementFactory::make("jpegdec", None)?;
+
+            src.set_property(
+                "location",
+                "/opt/nvidia/deepstream/deepstream/samples/streams/sample_720p.jpg",
+            );
+            pipeline.add_many(&[&src, &dec]);
+            gst::Element::link_many(&[&src, &dec])?;
+            Ok(dec)
+        }
+        Source::VideoFile => {
+            let src = gst::ElementFactory::make("filesrc", None)?;
+            let parse = gst::ElementFactory::make("h264parse", None)?;
+            let dec = gst::ElementFactory::make("nvv4l2decoder", None)?;
+
+            src.set_property(
+                "location",
+                "/opt/nvidia/deepstream/deepstream/samples/streams/sample_720p.h264",
+            );
+
+            src.set_property("num-buffers", 10i32);
+
+            pipeline.add_many(&[&src, &parse, &dec]);
+            gst::Element::link_many(&[&src, &parse, &dec])?;
+            Ok(dec)
+        }
+    }
+}
+
+fn create_pipeline(opt: &Opt) -> Result<gst::Pipeline, Error> {
     gst::init()?;
 
     // This creates a pipeline with appsrc and appsink.
     let pipeline = gst::Pipeline::new(None);
-    let src = gst::ElementFactory::make("filesrc", None)?;
-    let dec = gst::ElementFactory::make("jpegdec", None)?;
+    let srcbin = create_source(&opt.source, &pipeline)?;
+
     let vidconv = gst::ElementFactory::make("videoconvert", None)?;
     let nvvidconv = gst::ElementFactory::make("nvvideoconvert", None)?;
     let nvstreammux = gst::ElementFactory::make("nvstreammux", None)?;
     let nvinfer = gst::ElementFactory::make("nvinfer", None)?;
     let appsink = gst::ElementFactory::make("appsink", None)?;
-
-    src.set_property(
-        "location",
-        "/opt/nvidia/deepstream/deepstream/samples/streams/sample_720p.jpg",
-    );
 
     nvstreammux.set_property("batch-size", 1u32);
     nvstreammux.set_property("width", 1280u32);
@@ -35,16 +66,8 @@ fn create_pipeline() -> Result<gst::Pipeline, Error> {
 
     nvinfer.set_property("config-file-path", "../scripts/config_infer_yolov3.txt");
 
-    pipeline.add_many(&[
-        &src,
-        &dec,
-        &vidconv,
-        &nvvidconv,
-        &nvstreammux,
-        &nvinfer,
-        &appsink,
-    ])?;
-    gst::Element::link_many(&[&src, &dec, &vidconv, &nvvidconv])?;
+    pipeline.add_many(&[&vidconv, &nvvidconv, &nvstreammux, &nvinfer, &appsink])?;
+    gst::Element::link_many(&[&srcbin, &vidconv, &nvvidconv])?;
     let src_pad = nvvidconv.static_pad("src").expect("has not src pad");
     let sink_pad = nvstreammux
         .request_pad_simple("sink_0")
@@ -103,8 +126,9 @@ fn create_pipeline() -> Result<gst::Pipeline, Error> {
 
     Ok(pipeline)
 }
-fn example_main() {
-    let pipeline = create_pipeline().unwrap();
+
+fn example_main(opt: &Opt) {
+    let pipeline = create_pipeline(opt).unwrap();
 
     // Actually start the pipeline.
     pipeline
@@ -141,8 +165,44 @@ fn example_main() {
         .expect("Unable to set the pipeline to the `Null` state");
 }
 
+#[derive(Debug, StructOpt)]
+enum Source {
+    ImageFile,
+    VideoFile,
+}
+
+impl Default for Source {
+    fn default() -> Self {
+        Self::ImageFile
+    }
+}
+type ParseError = &'static str;
+impl FromStr for Source {
+    type Err = ParseError;
+    fn from_str(src: &str) -> Result<Self, Self::Err> {
+        match src {
+            "image" => Ok(Self::ImageFile),
+            "video" => Ok(Self::VideoFile),
+            _ => Err("Could not parse a source"),
+        }
+    }
+}
+
+#[derive(Debug, StructOpt)]
+#[structopt(
+    name = "mvdsmeta_app",
+    about = "test nvdsmeta with deepstremaer sample"
+)]
+struct Opt {
+    /// Select inference source
+    #[structopt(short, default_value = "image")]
+    source: Source,
+}
+
 fn main() {
     // tutorials_common::run is only required to set up the application environment on macOS
     // (but not necessary in normal Cocoa applications where this is set up automatically).
-    example_main();
+    let opt = Opt::from_args();
+    println!("{:?}", opt);
+    example_main(&opt);
 }
