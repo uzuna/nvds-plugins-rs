@@ -6,5 +6,7 @@
 *.weights
 *.engine
 
-# result
+# results
 _*.jpg
+
+*.dot
