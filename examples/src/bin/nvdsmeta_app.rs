@@ -1,5 +1,5 @@
 //! Example using nvdsmeta-sys with Appsink
-//! 
+//!
 //! and Use to check the operation of nvdsmeta-sys.
 #![allow(clippy::non_send_fields_in_send_ty)]
 
@@ -8,8 +8,10 @@ use chrono::serde::ts_nanoseconds;
 use chrono::DateTime;
 use chrono::NaiveDateTime;
 use chrono::Utc;
+
 use nvdsmeta_sys::NvBbox_Coords;
 
+use nvdsmeta_sys::NvDsFrameMeta;
 use nvdsmeta_sys::NvDsObjectMeta;
 use serde::{Deserialize, Serialize};
 use structopt::StructOpt;
@@ -22,11 +24,12 @@ fn create_source(s: &Source, pipeline: &gst::Pipeline) -> Result<gst::Element, E
         Source::ImageFile { location } => {
             let src = gst::ElementFactory::make("filesrc", None)?;
             let dec = gst::ElementFactory::make("jpegdec", None)?;
+            let vidconv = gst::ElementFactory::make("videoconvert", None)?;
 
             src.set_property("location", location);
-            pipeline.add_many(&[&src, &dec])?;
-            gst::Element::link_many(&[&src, &dec])?;
-            Ok(dec)
+            pipeline.add_many(&[&src, &dec, &vidconv])?;
+            gst::Element::link_many(&[&src, &dec, &vidconv])?;
+            Ok(vidconv)
         }
         Source::VideoFile {
             location,
@@ -49,14 +52,21 @@ fn create_source(s: &Source, pipeline: &gst::Pipeline) -> Result<gst::Element, E
             num_buffers,
         } => {
             let src = gst::ElementFactory::make("v4l2src", None)?;
-            let dec = gst::ElementFactory::make("nvv4l2decoder", None)?;
+            // let dec = gst::ElementFactory::make("decodebin", None)?;
+            let vidconv = gst::ElementFactory::make("videoconvert", None)?;
 
             src.set_property("device", device);
             src.set_property("num-buffers", num_buffers);
 
-            pipeline.add_many(&[&src, &dec])?;
-            gst::Element::link_many(&[&src, &dec])?;
-            Ok(dec)
+            let caps = gst::Caps::builder("video/x-raw")
+                .field("width", 1280)
+                .field("height", 720)
+                .build();
+
+            pipeline.add_many(&[&src, &vidconv])?;
+            src.link_filtered(&vidconv, &caps)?;
+
+            Ok(vidconv)
         }
     }
 }
@@ -67,7 +77,6 @@ fn create_pipeline(opt: &Opt) -> Result<gst::Pipeline, Error> {
     let pipeline = gst::Pipeline::new(None);
     let srcbin = create_source(&opt.source, &pipeline)?;
 
-    let vidconv = gst::ElementFactory::make("videoconvert", None)?;
     let nvvidconv = gst::ElementFactory::make("nvvideoconvert", None)?;
     let nvstreammux = gst::ElementFactory::make("nvstreammux", None)?;
     let nvinfer = gst::ElementFactory::make("nvinfer", None)?;
@@ -77,13 +86,13 @@ fn create_pipeline(opt: &Opt) -> Result<gst::Pipeline, Error> {
     nvstreammux.set_property("width", 1280u32);
     nvstreammux.set_property("height", 720u32);
     nvstreammux.set_property("batched-push-timeout", 40000i32);
-    // FIXME we can use GstNvBufMemoryType? 
+    // FIXME we can use GstNvBufMemoryType?
     // nvstreammux.set_property("nvbuf-memory-type", "0");
 
     nvinfer.set_property("config-file-path", "../scripts/config_infer_yolov3.txt");
 
-    pipeline.add_many(&[&vidconv, &nvvidconv, &nvstreammux, &nvinfer, &appsink])?;
-    gst::Element::link_many(&[&srcbin, &vidconv, &nvvidconv])?;
+    pipeline.add_many(&[&nvvidconv, &nvstreammux, &nvinfer, &appsink])?;
+    gst::Element::link_many(&[&srcbin, &nvvidconv])?;
     let src_pad = nvvidconv.static_pad("src").expect("has not src pad");
     let sink_pad = nvstreammux
         .request_pad_simple("sink_0")
@@ -114,17 +123,14 @@ fn create_pipeline(opt: &Opt) -> Result<gst::Pipeline, Error> {
                     let list = meta.frame_meta_list();
 
                     for meta in list {
-                        let frame_info = BufferFrameInfo::new(
-                            meta.frame_num() as i64,
-                            *buffer.pts().unwrap(),
-                            meta.ntp_timestamp(),
-                        );
+                        let frame_info = BufferFrameInfo::new(*buffer.pts().unwrap(), meta);
+
                         let objs = meta.object_meta_list();
                         for (j, o) in objs.enumerate() {
                             let mut obj = ObjectMeta::from(o);
                             obj.detection_index = j as u32;
                             let msg = ObjectMessage::new(frame_info.clone(), obj);
-                            println!("msg {:?}", msg);
+                            log::info!("msg {:?}", msg);
                         }
                     }
                 }
@@ -173,22 +179,34 @@ fn example_main(opt: &Opt) {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+struct SourceInfo {
+    source_id: u32,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
 struct BufferFrameInfo {
-    frame_no: i64,
+    source_id: u32,
+    width: u32,
+    height: u32,
+    frame_num: i32,
     pts: u64,
     #[serde(with = "ts_nanoseconds")]
     infer_ts: DateTime<Utc>,
 }
 
 impl BufferFrameInfo {
-    fn new(frame_no: i64, pts: u64, infer_ts: u64) -> Self {
+    fn new(pts: u64, meta: &NvDsFrameMeta) -> Self {
+        let infer_ts = meta.ntp_timestamp();
         let naive = NaiveDateTime::from_timestamp_opt(
             infer_ts as i64 / 1000_000_000,
             (infer_ts % 1000_000_000) as u32,
         )
         .unwrap();
         Self {
-            frame_no,
+            source_id: meta.source_id(),
+            width: meta.source_frame_width(),
+            height: meta.source_frame_height(),
+            frame_num: meta.frame_num(),
             pts,
             infer_ts: DateTime::<Utc>::from_utc(naive, Utc),
         }
@@ -244,8 +262,8 @@ struct ObjectMessage {
 }
 
 impl ObjectMessage {
-    fn new(frame: BufferFrameInfo, object: ObjectMeta) -> Self{
-        Self{ frame, object }
+    fn new(frame: BufferFrameInfo, object: ObjectMeta) -> Self {
+        Self { frame, object }
     }
 }
 
@@ -254,7 +272,8 @@ enum Source {
     /// inference image file
     ImageFile {
         #[structopt(
-            short, long,
+            short,
+            long,
             default_value = "/opt/nvidia/deepstream/deepstream/samples/streams/sample_720p.jpg"
         )]
         location: String,
@@ -262,7 +281,8 @@ enum Source {
     /// inference video file
     VideoFile {
         #[structopt(
-            short, long,
+            short,
+            long,
             default_value = "/opt/nvidia/deepstream/deepstream/samples/streams/sample_720p.h264"
         )]
         location: String,
@@ -291,6 +311,7 @@ struct Opt {
 }
 
 fn main() {
+    env_logger::init();
     let opt = Opt::from_args();
     log::debug!("{:?}", opt);
     example_main(&opt);
