@@ -1,18 +1,11 @@
 //! Example using nvdsmeta-sys with Appsink
 //!
 //! and Use to check the operation of nvdsmeta-sys.
-#![allow(clippy::non_send_fields_in_send_ty)]
-
 use anyhow::Error;
 use chrono::serde::ts_nanoseconds;
-use chrono::DateTime;
-use chrono::NaiveDateTime;
-use chrono::Utc;
+use chrono::{DateTime, NaiveDateTime, Utc};
 
-use nvdsmeta_sys::NvBbox_Coords;
-
-use nvdsmeta_sys::NvDsFrameMeta;
-use nvdsmeta_sys::NvDsObjectMeta;
+use nvdsmeta_sys::{NvBbox_Coords, NvDsFrameMeta, NvDsObjectMeta};
 use serde::{Deserialize, Serialize};
 use structopt::StructOpt;
 
@@ -52,7 +45,6 @@ fn create_source(s: &Source, pipeline: &gst::Pipeline) -> Result<gst::Element, E
             num_buffers,
         } => {
             let src = gst::ElementFactory::make("v4l2src", None)?;
-            // let dec = gst::ElementFactory::make("decodebin", None)?;
             let vidconv = gst::ElementFactory::make("videoconvert", None)?;
 
             src.set_property("device", device);

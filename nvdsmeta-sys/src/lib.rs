@@ -1,5 +1,5 @@
 use gst::{prelude::*, ClockTime};
-use std::{fmt, ffi::CStr};
+use std::{ffi::CStr, fmt};
 
 mod imp;
 pub mod nvlist;
@@ -88,7 +88,7 @@ impl NvDsObjectMeta {
     }
     #[inline]
     pub fn label(&self) -> &CStr {
-        unsafe {CStr::from_ptr(&self.0.obj_label as *const std::os::raw::c_char)}
+        unsafe { CStr::from_ptr(&self.0.obj_label as *const std::os::raw::c_char) }
     }
     #[inline]
     pub fn detector_bbox(&self) -> &NvBbox_Coords {
@@ -118,7 +118,7 @@ impl NvDsFrameMeta {
     }
     #[inline]
     pub fn buf_pts(&self) -> ClockTime {
-        ClockTime::from_nseconds(self.0.buf_pts) 
+        ClockTime::from_nseconds(self.0.buf_pts)
     }
     #[inline]
     pub fn ntp_timestamp(&self) -> u64 {
