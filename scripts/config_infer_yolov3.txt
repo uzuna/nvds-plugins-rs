@@ -58,29 +58,44 @@
 # properties.
 
 [property]
-gpu-id=0
-net-scale-factor=0.0039215697906911373
-#0=RGB, 1=BGR
-model-color-format=0
-custom-network-config=yolov3.cfg
-model-file=yolov3.weights
+
+# set TensorRT engine file path
 model-engine-file=model_b1_gpu0_int8.engine
-labelfile-path=/opt/nvidia/deepstream/deepstream/sources/objectDetector_Yolo/labels.txt
-int8-calib-file=yolov3-calibration.table.trt7.0
-## 0=FP32, 1=INT8, 2=FP16 mode
+
+# use INT8 optional parameter
 network-mode=1
+enable-dla=1
+int8-calib-file=yolov3-calibration.table.trt7.0
+
+# model additional information
 num-detected-classes=80
-gie-unique-id=1
+labelfile-path=/opt/nvidia/deepstream/deepstream/sources/objectDetector_Yolo/labels.txt
+
+# this model type is decetion
 network-type=0
-is-classifier=0
+# set uniqueid in this pipeline
+gie-unique-id=1
+
 ## 1=DBSCAN, 2=NMS, 3= DBSCAN+NMS Hybrid, 4 = None(No clustering)
 cluster-mode=2
+
+# no change aspect
 maintain-aspect-ratio=1
+
+# using custom plugin
 parse-bbox-func-name=NvDsInferParseCustomYoloV3
 custom-lib-path=/opt/nvidia/deepstream/deepstream/sources/objectDetector_Yolo/nvdsinfer_custom_impl_Yolo/libnvdsinfer_custom_impl_Yolo.so
 engine-create-func-name=NvDsInferYoloCudaEngineGet
-#scaling-filter=0
-#scaling-compute-hw=0
+
+
+# gpu-id=0
+# net-scale-factor=0.0039215697906911373
+#0=RGB, 1=BGR
+# model-color-format=0
+# custom-network-config=yolov3.cfg
+# model-file=yolov3.weights
+# scaling-filter=0
+# scaling-compute-hw=0
 
 [class-attrs-all]
 nms-iou-threshold=0.3
