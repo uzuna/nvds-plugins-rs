@@ -43,6 +43,8 @@ fn create_source(s: &Source, pipeline: &gst::Pipeline) -> Result<gst::Element, E
         Source::V4l2Src {
             device,
             num_buffers,
+            width,
+            height,
         } => {
             let src = gst::ElementFactory::make("v4l2src", None)?;
             let vidconv = gst::ElementFactory::make("videoconvert", None)?;
@@ -51,8 +53,8 @@ fn create_source(s: &Source, pipeline: &gst::Pipeline) -> Result<gst::Element, E
             src.set_property("num-buffers", num_buffers);
 
             let caps = gst::Caps::builder("video/x-raw")
-                .field("width", 1280)
-                .field("height", 720)
+                .field("width", width)
+                .field("height", height)
                 .build();
 
             pipeline.add_many(&[&src, &vidconv])?;
@@ -289,6 +291,11 @@ enum Source {
         /// Number of buffers to flow in the pipeline
         #[structopt(long, default_value = "30")]
         num_buffers: i32,
+
+        #[structopt(long, default_value = "1280")]
+        width: i32,
+        #[structopt(long, default_value = "720")]
+        height: i32,
     },
 }
 
@@ -303,7 +310,7 @@ struct Opt {
 }
 
 fn main() {
-    env_logger::init();
+    env_logger::Builder::from_env(env_logger::Env::default().default_filter_or("info")).init();
     let opt = Opt::from_args();
     log::debug!("{:?}", opt);
     example_main(&opt);
