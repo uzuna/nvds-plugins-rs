@@ -1,4 +1,4 @@
-use gst::{prelude::*, ClockTime};
+use gst::{prelude::*, ClockTime, glib};
 use std::{ffi::CStr, fmt};
 
 mod imp;
@@ -11,6 +11,7 @@ extern "C" {
 }
 
 mod nvgst {
+    use gst::glib;
     #[allow(non_upper_case_globals)]
     pub(crate) const NvDsMetaType_NVDS_GST_BATCH_META: crate::imp::NvDsMetaType =
         crate::imp::NvDsMetaType_NVDS_GST_CUSTOM_META + 1;
