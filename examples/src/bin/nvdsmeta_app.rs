@@ -1,6 +1,8 @@
 //! Example using nvdsmeta-sys with Appsink
 //!
 //! and Use to check the operation of nvdsmeta-sys.
+use std::path::PathBuf;
+
 use anyhow::Error;
 use chrono::serde::ts_nanoseconds;
 use chrono::{DateTime, NaiveDateTime, Utc};
@@ -15,9 +17,9 @@ use gst::prelude::*;
 fn create_source(s: &Source, pipeline: &gst::Pipeline) -> Result<gst::Element, Error> {
     match s {
         Source::ImageFile { location } => {
-            let src = gst::ElementFactory::make("filesrc", None)?;
-            let dec = gst::ElementFactory::make("jpegdec", None)?;
-            let vidconv = gst::ElementFactory::make("videoconvert", None)?;
+            let src = gst::ElementFactory::make("filesrc").build()?;
+            let dec = gst::ElementFactory::make("jpegdec").build()?;
+            let vidconv = gst::ElementFactory::make("videoconvert").build()?;
 
             src.set_property("location", location);
             pipeline.add_many(&[&src, &dec, &vidconv])?;
@@ -28,9 +30,9 @@ fn create_source(s: &Source, pipeline: &gst::Pipeline) -> Result<gst::Element, E
             location,
             num_buffers,
         } => {
-            let src = gst::ElementFactory::make("filesrc", None)?;
-            let parse = gst::ElementFactory::make("h264parse", None)?;
-            let dec = gst::ElementFactory::make("nvv4l2decoder", None)?;
+            let src = gst::ElementFactory::make("filesrc").build()?;
+            let parse = gst::ElementFactory::make("h264parse").build()?;
+            let dec = gst::ElementFactory::make("nvv4l2decoder").build()?;
 
             src.set_property("location", location);
 
@@ -46,8 +48,8 @@ fn create_source(s: &Source, pipeline: &gst::Pipeline) -> Result<gst::Element, E
             width,
             height,
         } => {
-            let src = gst::ElementFactory::make("v4l2src", None)?;
-            let vidconv = gst::ElementFactory::make("videoconvert", None)?;
+            let src = gst::ElementFactory::make("v4l2src").build()?;
+            let vidconv = gst::ElementFactory::make("videoconvert").build()?;
 
             src.set_property("device", device);
             src.set_property("num-buffers", num_buffers);
@@ -71,10 +73,10 @@ fn create_pipeline(opt: &Opt) -> Result<gst::Pipeline, Error> {
     let pipeline = gst::Pipeline::new(None);
     let srcbin = create_source(&opt.source, &pipeline)?;
 
-    let nvvidconv = gst::ElementFactory::make("nvvideoconvert", None)?;
-    let nvstreammux = gst::ElementFactory::make("nvstreammux", None)?;
-    let nvinfer = gst::ElementFactory::make("nvinfer", None)?;
-    let appsink = gst::ElementFactory::make("appsink", None)?;
+    let nvvidconv = gst::ElementFactory::make("nvvideoconvert").build()?;
+    let nvstreammux = gst::ElementFactory::make("nvstreammux").build()?;
+    let nvinfer = gst::ElementFactory::make("nvinfer").build()?;
+    let appsink = gst::ElementFactory::make("appsink").build()?;
 
     nvstreammux.set_property("batch-size", 1u32);
     nvstreammux.set_property("width", 1280u32);
@@ -83,7 +85,7 @@ fn create_pipeline(opt: &Opt) -> Result<gst::Pipeline, Error> {
     // FIXME we can use GstNvBufMemoryType?
     // nvstreammux.set_property("nvbuf-memory-type", "0");
 
-    nvinfer.set_property("config-file-path", "../scripts/config_infer_yolov3.txt");
+    nvinfer.set_property("config-file-path", opt.config_infer_file.to_str().unwrap());
 
     pipeline.add_many(&[&nvvidconv, &nvstreammux, &nvinfer, &appsink])?;
     gst::Element::link_many(&[&srcbin, &nvvidconv])?;
@@ -307,6 +309,9 @@ enum Source {
 struct Opt {
     #[structopt(subcommand)]
     source: Source,
+
+    #[structopt(long, parse(from_os_str), default_value="config_infer_yolov3.txt")]
+    config_infer_file: PathBuf
 }
 
 fn main() {
