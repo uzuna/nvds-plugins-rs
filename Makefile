@@ -1,4 +1,4 @@
-
+include ./rust.mk
 
 .PHONY: run
 run: yolov3.cfg yolov3.weights
