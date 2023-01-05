@@ -1,4 +1,4 @@
-use gst::{prelude::*, ClockTime, glib};
+use gst::{glib, prelude::*, ClockTime};
 use std::{ffi::CStr, fmt};
 
 mod imp;

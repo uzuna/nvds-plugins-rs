@@ -1,5 +1,5 @@
-use std::marker::PhantomData;
 use gst::glib;
+use std::marker::PhantomData;
 
 pub struct GList {
     ptr: Option<std::ptr::NonNull<glib::ffi::GList>>,
